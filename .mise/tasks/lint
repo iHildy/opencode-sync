@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+#MISE description="Run ESLint"
+eslint . --ext .ts

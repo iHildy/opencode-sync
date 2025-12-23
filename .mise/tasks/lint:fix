@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+#MISE description="Run ESLint with auto-fix"
+eslint . --ext .ts --fix

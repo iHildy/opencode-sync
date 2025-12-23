@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+#MISE description="Prepare for publishing"
+bun run build

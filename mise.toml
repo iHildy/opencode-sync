@@ -1,0 +1,9 @@
+[tools]
+bun = "1.3.2"
+npm = "11.6.3"
+usage = "2.8.0"
+
+[env]
+_.path = [
+    "{{config_root}}/node_modules/.bin",
+]

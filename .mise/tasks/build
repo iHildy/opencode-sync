@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+#MISE description="Build the project"
+bun build ./src/index.ts --outdir dist --target bun

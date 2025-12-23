@@ -1,0 +1,14 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+.env
+.env.local
+coverage/
+.nyc_output/
+.eslintcache
+.bun/
+.bun.lockb
+.memory/
+opencode-plugin-template/
+opencode-docs-*/

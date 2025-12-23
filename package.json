@@ -1,0 +1,50 @@
+{
+  "name": "opencode-sync",
+  "version": "0.1.0",
+  "description": "Sync global OpenCode config across machines via GitHub.",
+  "author": {
+    "name": "Ian Hildebrand"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/example/opencode-sync"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@opencode-ai/plugin": "1.0.85"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/node": "^20.11.5",
+    "@typescript-eslint/eslint-plugin": "8.47.0",
+    "@typescript-eslint/parser": "8.47.0",
+    "bun-types": "latest",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-prettier": "^5.1.3",
+    "prettier": "^3.2.4",
+    "typescript-eslint": "^8.47.0",
+    "vitest": "^3.2.4"
+  },
+  "scripts": {
+    "build": "bun build ./src/index.ts --outdir dist --target bun && cp -R src/command dist/command",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write ."
+  }
+}

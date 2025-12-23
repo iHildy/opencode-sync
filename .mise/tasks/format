@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+#MISE description="Format code with Prettier"
+prettier --write "src/**/*.ts"

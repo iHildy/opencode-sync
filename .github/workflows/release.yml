@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    outputs:
+      releases_created: ${{ steps.release-please.outputs.releases_created }}
+      prs_created: ${{ steps.release-please.outputs.prs_created }}
+    steps:
+      - uses: google-github-actions/release-please-action@v4
+        id: release-please
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          release-type: node
+          skip-github-pull-request: false
+
+  dispatch-publish:
+    needs: process
+    runs-on: ubuntu-latest
+    if: needs.process.outputs.releases_created == 'true' || needs.process.outputs.prs_created == 'true'
+    steps:
+      - name: Dispatch publish for releases
+        if: needs.process.outputs.releases_created == 'true'
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          event-type: publish-package
+          client-payload: '{"tag": "latest"}'
+
+      - name: Dispatch publish for prerelease
+        if: needs.process.outputs.prs_created == 'true'
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          event-type: publish-package
+          client-payload: '{"tag": "next"}'
