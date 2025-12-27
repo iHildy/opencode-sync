@@ -15,6 +15,7 @@ export interface SyncConfig {
   localRepoPath?: string;
   includeSecrets?: boolean;
   includeSessions?: boolean;
+  includePromptStash?: boolean;
   extraSecretPaths?: string[];
 }
 
@@ -37,6 +38,7 @@ export function normalizeSyncConfig(config: SyncConfig): SyncConfig {
   return {
     includeSecrets: Boolean(config.includeSecrets),
     includeSessions: Boolean(config.includeSessions),
+    includePromptStash: Boolean(config.includePromptStash),
     extraSecretPaths: Array.isArray(config.extraSecretPaths) ? config.extraSecretPaths : [],
     localRepoPath: config.localRepoPath,
     repo: config.repo,

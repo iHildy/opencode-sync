@@ -7,6 +7,7 @@ Sync global OpenCode configuration across machines via a GitHub repo, with optio
 - Syncs global OpenCode config (`~/.config/opencode`) and related directories
 - Optional secrets sync when the repo is private
 - Optional session sync to share conversation history across machines
+- Optional prompt stash sync to share stashed prompts and history across machines
 - Startup auto-sync with restart toast
 - Per-machine overrides via `opencode-sync.overrides.jsonc`
 - Custom `/opencode-sync-*` commands and `opencode_sync` tool
@@ -47,6 +48,7 @@ Create `~/.config/opencode/opencode-sync.jsonc`:
   },
   "includeSecrets": false,
   "includeSessions": false,
+  "includePromptStash": false,
   "extraSecretPaths": [],
 }
 ```
@@ -86,6 +88,23 @@ Synced session data:
 - `~/.local/share/opencode/storage/part/` - Message parts
 - `~/.local/share/opencode/storage/session_diff/` - Session diffs
 
+### Prompt Stash (private repos only)
+
+Sync your stashed prompts and prompt history across machines by setting `"includePromptStash": true`. This requires `includeSecrets` to also be enabled since prompts may contain sensitive data.
+
+```jsonc
+{
+  "repo": { ... },
+  "includeSecrets": true,
+  "includePromptStash": true
+}
+```
+
+Synced prompt data:
+
+- `~/.local/state/opencode/prompt-stash.jsonl` - Stashed prompts
+- `~/.local/state/opencode/prompt-history.jsonl` - Prompt history
+
 ## Overrides
 
 Create a local-only overrides file at:
@@ -119,6 +138,7 @@ Create `~/.config/opencode/opencode-sync.jsonc`:
   },
   "includeSecrets": false,
   "includeSessions": false,
+  "includePromptStash": false,
   "extraSecretPaths": []
 }
 ```

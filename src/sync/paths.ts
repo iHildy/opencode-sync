@@ -7,6 +7,7 @@ export interface XdgPaths {
   homeDir: string;
   configDir: string;
   dataDir: string;
+  stateDir: string;
 }
 
 export interface SyncLocations {
@@ -51,6 +52,7 @@ const DEFAULT_STATE_NAME = 'opencode-sync-state.json';
 
 const CONFIG_DIRS = ['agent', 'command', 'mode', 'tool', 'themes', 'plugin'];
 const SESSION_DIRS = ['storage/session', 'storage/message', 'storage/part', 'storage/session_diff'];
+const PROMPT_STASH_FILES = ['prompt-stash.jsonl', 'prompt-history.jsonl'];
 
 export function resolveHomeDir(
   env: NodeJS.ProcessEnv = process.env,
@@ -74,19 +76,23 @@ export function resolveXdgPaths(
       homeDir: '',
       configDir: '',
       dataDir: '',
+      stateDir: '',
     };
   }
 
   if (platform === 'win32') {
     const configDir = env.APPDATA ?? path.join(homeDir, 'AppData', 'Roaming');
     const dataDir = env.LOCALAPPDATA ?? path.join(homeDir, 'AppData', 'Local');
-    return { homeDir, configDir, dataDir };
+    // Windows doesn't have XDG_STATE_HOME equivalent, use LOCALAPPDATA
+    const stateDir = env.LOCALAPPDATA ?? path.join(homeDir, 'AppData', 'Local');
+    return { homeDir, configDir, dataDir, stateDir };
   }
 
   const configDir = env.XDG_CONFIG_HOME ?? path.join(homeDir, '.config');
   const dataDir = env.XDG_DATA_HOME ?? path.join(homeDir, '.local', 'share');
+  const stateDir = env.XDG_STATE_HOME ?? path.join(homeDir, '.local', 'state');
 
-  return { homeDir, configDir, dataDir };
+  return { homeDir, configDir, dataDir, stateDir };
 }
 
 export function resolveSyncLocations(
@@ -220,6 +226,20 @@ export function buildSyncPlan(
           localPath: path.join(dataRoot, dirName),
           repoPath: path.join(repoDataRoot, dirName),
           type: 'dir',
+          isSecret: true,
+          isConfigFile: false,
+        });
+      }
+    }
+
+    if (config.includePromptStash) {
+      const stateRoot = path.join(locations.xdg.stateDir, 'opencode');
+      const repoStateRoot = path.join(repoRoot, 'state');
+      for (const fileName of PROMPT_STASH_FILES) {
+        items.push({
+          localPath: path.join(stateRoot, fileName),
+          repoPath: path.join(repoStateRoot, fileName),
+          type: 'file',
           isSecret: true,
           isConfigFile: false,
         });

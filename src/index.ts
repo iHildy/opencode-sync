@@ -88,6 +88,10 @@ export const OpencodeConfigSync: Plugin = async (ctx) => {
         .boolean()
         .optional()
         .describe('Enable session sync (requires includeSecrets)'),
+      includePromptStash: tool.schema
+        .boolean()
+        .optional()
+        .describe('Enable prompt stash/history sync (requires includeSecrets)'),
       create: tool.schema.boolean().optional().describe('Create repo if missing'),
       private: tool.schema.boolean().optional().describe('Create repo as private'),
       extraSecretPaths: tool.schema.array(tool.schema.string()).optional(),
@@ -107,6 +111,7 @@ export const OpencodeConfigSync: Plugin = async (ctx) => {
             branch: args.branch,
             includeSecrets: args.includeSecrets,
             includeSessions: args.includeSessions,
+            includePromptStash: args.includePromptStash,
             create: args.create,
             private: args.private,
             extraSecretPaths: args.extraSecretPaths,
