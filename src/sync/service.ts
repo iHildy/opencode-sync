@@ -10,6 +10,7 @@ import {
 } from './config.ts';
 import { SyncConfigMissingError, SyncCommandError } from './errors.ts';
 import { generateCommitMessage } from './commit.ts';
+import { extractTextFromResponse, resolveSmallModel, unwrapData } from './utils.ts';
 import { syncLocalToRepo, syncRepoToLocal } from './apply.ts';
 import { buildSyncPlan, resolveRepoRoot, resolveSyncLocations } from './paths.ts';
 import {
@@ -241,9 +242,7 @@ export function createSyncService(ctx: SyncServiceContext): SyncService {
       );
 
       if (decision.action === 'commit') {
-        const message =
-          decision.message ||
-          (await generateCommitMessage({ client: ctx.client, $: ctx.$ }, repoRoot));
+        const message = decision.message!;
         await commitAll(ctx.$, repoRoot, message);
         return `Resolved by committing changes: ${message}`;
       }
@@ -442,7 +441,7 @@ async function analyzeAndDecideResolution(
       diff.slice(0, 2000),
     ].join('\n');
 
-    const model = await resolveSmallModelForResolution(ctx.client);
+    const model = await resolveSmallModel(ctx.client);
     if (!model) {
       return { action: 'manual', reason: 'No AI model available' };
     }
@@ -483,6 +482,8 @@ async function analyzeAndDecideResolution(
       }
     }
   } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('[ERROR] AI resolution analysis failed:', error);
     return { action: 'manual', reason: `Error analyzing changes: ${formatError(error)}` };
   }
 }
@@ -512,47 +513,4 @@ function parseResolutionDecision(text: string): ResolutionDecision {
   } catch {
     return { action: 'manual', reason: 'Failed to parse AI decision' };
   }
-}
-
-function extractTextFromResponse(response: unknown): string | null {
-  if (!response || typeof response !== 'object') return null;
-
-  const parts =
-    (response as { parts?: Array<{ type: string; text?: string }> }).parts ??
-    (response as { info?: { parts?: Array<{ type: string; text?: string }> } }).info?.parts ??
-    [];
-
-  const textPart = parts.find((part) => part.type === 'text' && part.text);
-  return textPart?.text?.trim() ?? null;
-}
-
-async function resolveSmallModelForResolution(
-  client: SyncServiceContext['client']
-): Promise<{ providerID: string; modelID: string } | null> {
-  try {
-    const response = await client.config.get();
-    const config = unwrapData<{ small_model?: string; model?: string }>(response);
-    if (!config) return null;
-
-    const modelValue = config.small_model ?? config.model;
-    if (!modelValue) return null;
-
-    const [providerID, modelID] = modelValue.split('/', 2);
-    if (!providerID || !modelID) return null;
-    return { providerID, modelID };
-  } catch {
-    return null;
-  }
-}
-
-function unwrapData<T>(response: unknown): T | null {
-  if (!response || typeof response !== 'object') return null;
-  const maybeError = (response as { error?: unknown }).error;
-  if (maybeError) return null;
-  if ('data' in response) {
-    const data = (response as { data?: T }).data;
-    if (data !== undefined) return data;
-    return null;
-  }
-  return response as T;
 }

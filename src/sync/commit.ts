@@ -1,4 +1,5 @@
 import type { PluginInput } from '@opencode-ai/plugin';
+import { extractTextFromResponse, resolveSmallModel, unwrapData } from './utils.ts';
 
 type CommitClient = PluginInput['client'];
 type Shell = PluginInput['$'];
@@ -46,7 +47,7 @@ export async function generateCommitMessage(
       },
     });
 
-    const message = extractMessage(unwrapData(response) ?? response);
+    const message = extractTextFromResponse(unwrapData(response) ?? response);
     if (!message) return fallback;
 
     const sanitized = sanitizeMessage(message);
@@ -64,43 +65,12 @@ export async function generateCommitMessage(
   }
 }
 
-function extractMessage(response: unknown): string | null {
-  if (!response || typeof response !== 'object') return null;
-
-  const parts =
-    (response as { parts?: Array<{ type: string; text?: string }> }).parts ??
-    (response as { info?: { parts?: Array<{ type: string; text?: string }> } }).info?.parts ??
-    [];
-
-  const textPart = parts.find((part) => part.type === 'text' && part.text);
-  return textPart?.text?.trim() ?? null;
-}
-
 function sanitizeMessage(message: string): string {
   const firstLine = message.split('\n')[0].trim();
   const trimmed = firstLine.replace(/^["'`]+|["'`]+$/g, '').trim();
   if (!trimmed) return '';
   if (trimmed.length <= 72) return trimmed;
   return trimmed.slice(0, 72).trim();
-}
-
-async function resolveSmallModel(
-  client: CommitClient
-): Promise<{ providerID: string; modelID: string } | null> {
-  let config: { small_model?: string; model?: string } | null = null;
-  try {
-    const response = await client.config.get();
-    config = unwrapData<{ small_model?: string; model?: string }>(response);
-  } catch {
-    return null;
-  }
-  if (!config) return null;
-  const modelValue = config.small_model ?? config.model;
-  if (!modelValue) return null;
-
-  const [providerID, modelID] = modelValue.split('/', 2);
-  if (!providerID || !modelID) return null;
-  return { providerID, modelID };
 }
 
 async function getDiffSummary($: Shell, repoDir: string): Promise<string> {
@@ -118,16 +88,4 @@ function formatDate(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
-}
-
-function unwrapData<T>(response: unknown): T | null {
-  if (!response || typeof response !== 'object') return null;
-  const maybeError = (response as { error?: unknown }).error;
-  if (maybeError) return null;
-  if ('data' in response) {
-    const data = (response as { data?: T }).data;
-    if (data !== undefined) return data;
-    return null;
-  }
-  return response as T;
 }
