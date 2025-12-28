@@ -37,6 +37,25 @@ opencode
 
 ## Configure
 
+Run `/sync-init` to get started. This will:
+
+1. Detect your GitHub username from the CLI
+2. Create a private repo (`my-opencode-config` by default) if it doesn't exist
+3. Clone the repo and set up sync
+
+That's it! Your config will now sync automatically on startup.
+
+### Custom repo name or org
+
+You can specify a custom repo name or use an organization:
+
+- `/sync-init` - Uses `{your-username}/my-opencode-config`
+- `/sync-init my-config` - Uses `{your-username}/my-config`
+- `/sync-init my-org/team-config` - Uses `my-org/team-config`
+
+<details>
+<summary>Manual configuration</summary>
+
 Create `~/.config/opencode/opencode-sync.jsonc`:
 
 ```jsonc
@@ -53,7 +72,7 @@ Create `~/.config/opencode/opencode-sync.jsonc`:
 }
 ```
 
-You can also run `/sync-init` to scaffold this file.
+</details>
 
 ### Synced paths (default)
 
@@ -117,6 +136,7 @@ Overrides are merged into the runtime config and re-applied to `opencode.json(c)
 
 ## Usage
 
+- `/sync-init` to set up sync (creates repo if needed)
 - `/sync-status` for repo status and last sync
 - `/sync-pull` to fetch and apply remote config
 - `/sync-push` to commit and push local changes
@@ -124,29 +144,7 @@ Overrides are merged into the runtime config and re-applied to `opencode.json(c)
 - `/sync-resolve` to automatically resolve uncommitted changes using AI
 
 <details>
-<summary>Manual (slash command alternative)</summary>
-
-### Configure
-
-Create `~/.config/opencode/opencode-sync.jsonc`:
-
-```jsonc
-{
-  "repo": {
-    "owner": "your-org",
-    "name": "opencode-config",
-    "branch": "main",
-  },
-  "includeSecrets": false,
-  "includeSessions": false,
-  "includePromptStash": false,
-  "extraSecretPaths": [],
-}
-```
-
-### Enable secrets (private repo required)
-
-Set `"includeSecrets": true` and optionally add `"extraSecretPaths"`. The plugin will refuse to sync secrets if the repo is not private.
+<summary>Manual sync (without slash commands)</summary>
 
 ### Trigger a sync
 

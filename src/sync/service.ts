@@ -18,10 +18,12 @@ import {
   ensureRepoCloned,
   ensureRepoPrivate,
   fetchAndFastForward,
+  getAuthenticatedUser,
   getRepoStatus,
   hasLocalChanges,
   isRepoCloned,
   pushBranch,
+  repoExists,
   resolveRepoBranch,
   resolveRepoIdentifier,
 } from './repo.ts';
@@ -125,14 +127,16 @@ export function createSyncService(ctx: SyncServiceContext): SyncService {
       return statusLines.join('\n');
     },
     init: async (options: InitOptions) => {
-      const config = buildConfigFromInit(options);
-      if (!config.repo) {
-        throw new SyncCommandError('Provide repo info (owner/name or URL) to initialize sync.');
-      }
+      const config = await buildConfigFromInit(ctx.$, options);
 
       const repoIdentifier = resolveRepoIdentifier(config);
-      if (options.create) {
-        await createRepo(ctx.$, config, options.private ?? true);
+      const isPrivate = options.private ?? true;
+
+      const exists = await repoExists(ctx.$, repoIdentifier);
+      let created = false;
+      if (!exists) {
+        await createRepo(ctx.$, config, isPrivate);
+        created = true;
       }
 
       await writeSyncConfig(locations, config);
@@ -140,12 +144,14 @@ export function createSyncService(ctx: SyncServiceContext): SyncService {
       await ensureRepoCloned(ctx.$, config, repoRoot);
       await ensureSecretsPolicy(ctx, config);
 
-      return [
+      const lines = [
         'opencode-sync configured.',
-        `Repo: ${repoIdentifier}`,
+        `Repo: ${repoIdentifier}${created ? ' (created)' : ''}`,
         `Branch: ${resolveRepoBranch(config)}`,
         `Local repo: ${repoRoot}`,
-      ].join('\n');
+      ];
+
+      return lines.join('\n');
     },
     pull: async () => {
       const config = await getConfigOrThrow(locations);
@@ -340,8 +346,10 @@ async function resolveBranch(
   }
 }
 
-function buildConfigFromInit(options: InitOptions) {
-  const repo = resolveRepoFromInit(options);
+const DEFAULT_REPO_NAME = 'my-opencode-config';
+
+async function buildConfigFromInit($: Shell, options: InitOptions) {
+  const repo = await resolveRepoFromInit($, options);
   return normalizeSyncConfig({
     repo,
     includeSecrets: options.includeSecrets ?? false,
@@ -352,7 +360,7 @@ function buildConfigFromInit(options: InitOptions) {
   });
 }
 
-function resolveRepoFromInit(options: InitOptions) {
+async function resolveRepoFromInit($: Shell, options: InitOptions) {
   if (options.url) {
     return { url: options.url, branch: options.branch };
   }
@@ -363,12 +371,21 @@ function resolveRepoFromInit(options: InitOptions) {
     if (options.repo.includes('://') || options.repo.endsWith('.git')) {
       return { url: options.repo, branch: options.branch };
     }
-    const [owner, name] = options.repo.split('/');
-    if (owner && name) {
-      return { owner, name, branch: options.branch };
+    if (options.repo.includes('/')) {
+      const [owner, name] = options.repo.split('/');
+      if (owner && name) {
+        return { owner, name, branch: options.branch };
+      }
     }
+
+    const owner = await getAuthenticatedUser($);
+    return { owner, name: options.repo, branch: options.branch };
   }
-  return undefined;
+
+  // Default: auto-detect owner, use default repo name
+  const owner = await getAuthenticatedUser($);
+  const name = DEFAULT_REPO_NAME;
+  return { owner, name, branch: options.branch };
 }
 
 async function createRepo(

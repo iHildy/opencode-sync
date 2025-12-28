@@ -236,3 +236,23 @@ function formatError(error: unknown): string {
   if (error instanceof Error) return error.message;
   return String(error);
 }
+
+export async function repoExists($: Shell, repoIdentifier: string): Promise<boolean> {
+  try {
+    await $`gh repo view ${repoIdentifier} --json name`;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function getAuthenticatedUser($: Shell): Promise<string> {
+  try {
+    const output = await $`gh api user --jq .login`.text();
+    return output.trim();
+  } catch (error) {
+    throw new SyncCommandError(
+      `Failed to detect GitHub user. Ensure gh is authenticated: ${formatError(error)}`
+    );
+  }
+}
