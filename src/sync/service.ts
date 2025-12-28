@@ -50,6 +50,7 @@ export interface SyncService {
   pull: () => Promise<string>;
   push: () => Promise<string>;
   enableSecrets: (_extraSecretPaths?: string[]) => Promise<string>;
+  resolve: () => Promise<string>;
 }
 
 export function createSyncService(ctx: SyncServiceContext): SyncService {
@@ -222,6 +223,43 @@ export function createSyncService(ctx: SyncServiceContext): SyncService {
 
       return 'Secrets sync enabled for this repo.';
     },
+    resolve: async () => {
+      const config = await getConfigOrThrow(locations);
+      const repoRoot = resolveRepoRoot(config, locations);
+      await ensureRepoCloned(ctx.$, config, repoRoot);
+
+      const dirty = await hasLocalChanges(ctx.$, repoRoot);
+      if (!dirty) {
+        return 'No uncommitted changes to resolve.';
+      }
+
+      const status = await getRepoStatus(ctx.$, repoRoot);
+      const decision = await analyzeAndDecideResolution(
+        { client: ctx.client, $: ctx.$ },
+        repoRoot,
+        status.changes
+      );
+
+      if (decision.action === 'commit') {
+        const message =
+          decision.message ||
+          (await generateCommitMessage({ client: ctx.client, $: ctx.$ }, repoRoot));
+        await commitAll(ctx.$, repoRoot, message);
+        return `Resolved by committing changes: ${message}`;
+      }
+
+      if (decision.action === 'reset') {
+        try {
+          await ctx.$`git -C ${repoRoot} reset --hard HEAD`;
+          await ctx.$`git -C ${repoRoot} clean -fd`;
+          return 'Resolved by discarding all uncommitted changes.';
+        } catch (error) {
+          throw new SyncCommandError(`Failed to reset changes: ${formatError(error)}`);
+        }
+      }
+
+      return 'Unable to automatically resolve. Please manually resolve in: ' + repoRoot;
+    },
   };
 }
 
@@ -239,7 +277,7 @@ async function runStartup(
   if (dirty) {
     await showToast(
       ctx,
-      `Local sync repo has uncommitted changes in ${repoRoot}. Resolve before sync.`,
+      `Uncommitted changes detected. Run /opencode-sync-resolve to auto-fix, or manually resolve in: ${repoRoot}`,
       'warning'
     );
     return;
@@ -368,4 +406,153 @@ async function showToast(
 function formatError(error: unknown): string {
   if (error instanceof Error) return error.message;
   return String(error);
+}
+
+interface ResolutionDecision {
+  action: 'commit' | 'reset' | 'manual';
+  message?: string;
+  reason?: string;
+}
+
+async function analyzeAndDecideResolution(
+  ctx: { client: SyncServiceContext['client']; $: Shell },
+  repoRoot: string,
+  changes: string[]
+): Promise<ResolutionDecision> {
+  try {
+    const diff = await ctx.$`git -C ${repoRoot} diff HEAD`.text();
+    const statusOutput = changes.join('\n');
+
+    const prompt = [
+      'You are analyzing uncommitted changes in an opencode-sync repository.',
+      'Decide whether to commit these changes or discard them.',
+      '',
+      'IMPORTANT: Only choose "commit" if the changes appear to be legitimate config updates.',
+      'Choose "discard" if the changes look like temporary files, cache, or corruption.',
+      '',
+      'Respond with ONLY a JSON object in this exact format:',
+      '{"action": "commit", "message": "your commit message here"}',
+      'OR',
+      '{"action": "discard", "reason": "explanation why discarding"}',
+      '',
+      'Status:',
+      statusOutput,
+      '',
+      'Diff preview (first 2000 chars):',
+      diff.slice(0, 2000),
+    ].join('\n');
+
+    const model = await resolveSmallModelForResolution(ctx.client);
+    if (!model) {
+      return { action: 'manual', reason: 'No AI model available' };
+    }
+
+    let sessionId: string | null = null;
+    try {
+      const sessionResult = await ctx.client.session.create({
+        body: { title: 'opencode-sync-resolve' },
+      });
+      const session = unwrapData<{ id: string }>(sessionResult);
+      sessionId = session?.id ?? null;
+      if (!sessionId) {
+        return { action: 'manual', reason: 'Failed to create session' };
+      }
+
+      const response = await ctx.client.session.prompt({
+        path: { id: sessionId },
+        body: {
+          model,
+          parts: [{ type: 'text', text: prompt }],
+        },
+      });
+
+      const messageText = extractTextFromResponse(unwrapData(response) ?? response);
+      if (!messageText) {
+        return { action: 'manual', reason: 'No response from AI' };
+      }
+
+      const decision = parseResolutionDecision(messageText);
+      return decision;
+    } finally {
+      if (sessionId) {
+        try {
+          await ctx.client.session.delete({ path: { id: sessionId } });
+        } catch {
+          // Ignore cleanup failures
+        }
+      }
+    }
+  } catch (error) {
+    return { action: 'manual', reason: `Error analyzing changes: ${formatError(error)}` };
+  }
+}
+
+function parseResolutionDecision(text: string): ResolutionDecision {
+  try {
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      return { action: 'manual', reason: 'Could not parse AI response' };
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]) as {
+      action?: string;
+      message?: string;
+      reason?: string;
+    };
+
+    if (parsed.action === 'commit' && parsed.message) {
+      return { action: 'commit', message: parsed.message };
+    }
+
+    if (parsed.action === 'discard') {
+      return { action: 'reset', reason: parsed.reason };
+    }
+
+    return { action: 'manual', reason: 'Unexpected AI response format' };
+  } catch {
+    return { action: 'manual', reason: 'Failed to parse AI decision' };
+  }
+}
+
+function extractTextFromResponse(response: unknown): string | null {
+  if (!response || typeof response !== 'object') return null;
+
+  const parts =
+    (response as { parts?: Array<{ type: string; text?: string }> }).parts ??
+    (response as { info?: { parts?: Array<{ type: string; text?: string }> } }).info?.parts ??
+    [];
+
+  const textPart = parts.find((part) => part.type === 'text' && part.text);
+  return textPart?.text?.trim() ?? null;
+}
+
+async function resolveSmallModelForResolution(
+  client: SyncServiceContext['client']
+): Promise<{ providerID: string; modelID: string } | null> {
+  try {
+    const response = await client.config.get();
+    const config = unwrapData<{ small_model?: string; model?: string }>(response);
+    if (!config) return null;
+
+    const modelValue = config.small_model ?? config.model;
+    if (!modelValue) return null;
+
+    const [providerID, modelID] = modelValue.split('/', 2);
+    if (!providerID || !modelID) return null;
+    return { providerID, modelID };
+  } catch {
+    return null;
+  }
+}
+
+function unwrapData<T>(response: unknown): T | null {
+  if (!response || typeof response !== 'object') return null;
+  const maybeError = (response as { error?: unknown }).error;
+  if (maybeError) return null;
+  if ('data' in response) {
+    const data = (response as { data?: T }).data;
+    if (data !== undefined) return data;
+    return null;
+  }
+  return response as T;
 }

@@ -24,7 +24,7 @@ Enable the plugin in your global OpenCode config (OpenCode will install it on ne
 ```jsonc
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-sync"]
+  "plugin": ["opencode-sync"],
 }
 ```
 
@@ -121,6 +121,7 @@ Overrides are merged into the runtime config and re-applied to `opencode.json(c)
 - `/opencode-sync-pull` to fetch and apply remote config
 - `/opencode-sync-push` to commit and push local changes
 - `/opencode-sync-enable-secrets` to opt in to secrets sync
+- `/opencode-sync-resolve` to automatically resolve uncommitted changes using AI
 
 <details>
 <summary>Manual (slash command alternative)</summary>
@@ -134,12 +135,12 @@ Create `~/.config/opencode/opencode-sync.jsonc`:
   "repo": {
     "owner": "your-org",
     "name": "opencode-config",
-    "branch": "main"
+    "branch": "main",
   },
   "includeSecrets": false,
   "includeSessions": false,
   "includePromptStash": false,
-  "extraSecretPaths": []
+  "extraSecretPaths": [],
 }
 ```
 
@@ -160,11 +161,15 @@ cd ~/.local/share/opencode/opencode-sync/repo
 git status
 git log --oneline -5
 ```
+
 </details>
 
 ## Recovery
 
-If the sync repo diverges, resolve it manually:
+If the sync repo has uncommitted changes, you can:
+
+1. **Auto-resolve using AI**: Run `/opencode-sync-resolve` to let AI analyze and decide whether to commit or discard the changes
+2. **Manual resolution**: Navigate to the repo and resolve manually:
 
 ```bash
 cd ~/.local/share/opencode/opencode-sync/repo
