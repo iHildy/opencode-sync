@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented here by Release Please.
 
+## [0.3.0](https://github.com/iHildy/opencode-synced/compare/v0.2.0...v0.3.0) (2025-12-31)
+
+
+### Features
+
+* force release for node compatibility refactor ([ec31b45](https://github.com/iHildy/opencode-synced/commit/ec31b45c355f8777d2e502bb0a5681bc7c929bcf))
+
 ## [0.2.0](https://github.com/iHildy/opencode-synced/compare/v0.1.1...v0.2.0) (2025-12-31)
 
 
