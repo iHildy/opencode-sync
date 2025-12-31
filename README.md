@@ -182,3 +182,7 @@ Then re-run `/sync-pull` or `/sync-push`.
 - `bun run build`
 - `bun run test`
 - `bun run lint`
+
+## Prefer a CLI version?
+
+I stumbled upon [opencodesync](https://www.npmjs.com/package/opencodesync) while publishing this plugin. I haven't used it yet but worth a shot!

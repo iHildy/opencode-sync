@@ -141,7 +141,10 @@ export const OpencodeConfigSync: Plugin = async (ctx) => {
     },
   });
 
-  void service.startupSync();
+  // Delay startup sync slightly to ensure TUI is connected
+  setTimeout(() => {
+    void service.startupSync();
+  }, 1000);
 
   return {
     tool: {

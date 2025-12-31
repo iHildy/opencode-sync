@@ -61,14 +61,22 @@ export function createSyncService(ctx: SyncServiceContext): SyncService {
 
   return {
     startupSync: async () => {
-      const config = await loadSyncConfig(locations);
-      if (!config) {
-        await showToast(ctx, 'Configure opencode-synced with /sync-init.', 'info');
-        return;
-      }
       try {
+        const config = await loadSyncConfig(locations);
+        if (!config) {
+          await showToast(ctx, 'Run /sync-init to set up config sync.', 'info');
+          return;
+        }
+
+        // Check if repo is configured properly before attempting sync
+        if (!config.repo || (!config.repo.url && (!config.repo.owner || !config.repo.name))) {
+          await showToast(ctx, 'Run /sync-init to set up config sync.', 'info');
+          return;
+        }
+
         await runStartup(ctx, locations, config);
       } catch (error) {
+        // Log error but don't block OpenCode startup
         await showToast(ctx, formatError(error), 'error');
       }
     },
@@ -274,6 +282,20 @@ async function runStartup(
   config: ReturnType<typeof normalizeSyncConfig>
 ): Promise<void> {
   const repoRoot = resolveRepoRoot(config, locations);
+
+  // Check if repo is already cloned locally
+  const cloned = await isRepoCloned(repoRoot);
+  if (!cloned) {
+    // Repo not cloned - check if it exists on GitHub before attempting clone
+    const repoIdentifier = resolveRepoIdentifier(config);
+    const exists = await repoExists(ctx.$, repoIdentifier);
+    if (!exists) {
+      // Repo doesn't exist yet - user needs to run /sync-init or create it
+      // Silently skip to avoid blocking startup
+      return;
+    }
+  }
+
   await ensureRepoCloned(ctx.$, config, repoRoot);
   await ensureSecretsPolicy(ctx, config);
   const branch = await resolveBranch(ctx, config, repoRoot);
@@ -414,9 +436,21 @@ type ToastVariant = 'info' | 'success' | 'warning' | 'error';
 async function showToast(
   ctx: SyncServiceContext,
   message: string,
-  variant: ToastVariant
+  variant: ToastVariant,
+  title?: string
 ): Promise<void> {
-  await ctx.client.tui.showToast({ body: { message: `opencode-synced: ${message}`, variant } });
+  try {
+    await ctx.client.tui.showToast({
+      body: {
+        title: title ?? 'opencode-synced',
+        message,
+        variant,
+        duration: 5000,
+      },
+    });
+  } catch {
+    // Toast failed - TUI might not be connected yet
+  }
 }
 
 function formatError(error: unknown): string {
