@@ -58,9 +58,13 @@ export interface SyncService {
 
 export function createSyncService(ctx: SyncServiceContext): SyncService {
   const locations = resolveSyncLocations();
+  let startupSyncStarted = false;
 
   return {
     startupSync: async () => {
+      if (startupSyncStarted) return;
+      startupSyncStarted = true;
+
       try {
         const config = await loadSyncConfig(locations);
         if (!config) {
@@ -70,7 +74,11 @@ export function createSyncService(ctx: SyncServiceContext): SyncService {
 
         // Check if repo is configured properly before attempting sync
         if (!config.repo || (!config.repo.url && (!config.repo.owner || !config.repo.name))) {
-          await showToast(ctx, 'Run /sync-init to set up config sync.', 'info');
+          await showToast(
+            ctx,
+            'Repository details are missing or incomplete in config. Run /sync-init to fix.',
+            'info'
+          );
           return;
         }
 
@@ -448,8 +456,10 @@ async function showToast(
         duration: 5000,
       },
     });
-  } catch {
+  } catch (error) {
     // Toast failed - TUI might not be connected yet
+    // eslint-disable-next-line no-console
+    console.error('[opencode-synced] Failed to show toast:', error);
   }
 }
 
