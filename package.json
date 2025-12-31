@@ -1,5 +1,5 @@
 {
-  "name": "opencode-sync",
+  "name": "opencode-synced",
   "version": "0.1.0",
   "description": "Sync global OpenCode config across machines via GitHub.",
   "author": {
@@ -14,7 +14,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/iHildy/opencode-sync.git"
+    "url": "git+https://github.com/iHildy/opencode-synced.git"
   },
   "publishConfig": {
     "access": "public"

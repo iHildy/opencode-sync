@@ -1,4 +1,4 @@
-# opencode-sync
+# opencode-synced
 
 Sync global OpenCode configuration across machines via a GitHub repo, with optional secrets support for private repos.
 
@@ -9,7 +9,7 @@ Sync global OpenCode configuration across machines via a GitHub repo, with optio
 - Optional session sync to share conversation history across machines
 - Optional prompt stash sync to share stashed prompts and history across machines
 - Startup auto-sync with restart toast
-- Per-machine overrides via `opencode-sync.overrides.jsonc`
+- Per-machine overrides via `opencode-synced.overrides.jsonc`
 - Custom `/sync-*` commands and `opencode_sync` tool
 
 ## Requirements
@@ -24,14 +24,14 @@ Enable the plugin in your global OpenCode config (OpenCode will install it on ne
 ```jsonc
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-sync"],
+  "plugin": ["opencode-synced"],
 }
 ```
 
 OpenCode does not auto-update plugins. To update, remove the cached plugin and restart OpenCode:
 
 ```bash
-rm -rf ~/.cache/opencode/node_modules/opencode-sync
+rm -rf ~/.cache/opencode/node_modules/opencode-synced
 opencode
 ```
 
@@ -56,7 +56,7 @@ You can specify a custom repo name or use an organization:
 <details>
 <summary>Manual configuration</summary>
 
-Create `~/.config/opencode/opencode-sync.jsonc`:
+Create `~/.config/opencode/opencode-synced.jsonc`:
 
 ```jsonc
 {
@@ -129,7 +129,7 @@ Synced prompt data:
 Create a local-only overrides file at:
 
 ```
-~/.config/opencode/opencode-sync.overrides.jsonc
+~/.config/opencode/opencode-synced.overrides.jsonc
 ```
 
 Overrides are merged into the runtime config and re-applied to `opencode.json(c)` after pull.
@@ -155,7 +155,7 @@ Restart OpenCode to run the startup sync flow (pull remote, apply if changed, pu
 Inspect the local repo directly:
 
 ```bash
-cd ~/.local/share/opencode/opencode-sync/repo
+cd ~/.local/share/opencode/opencode-synced/repo
 git status
 git log --oneline -5
 ```
@@ -170,7 +170,7 @@ If the sync repo has uncommitted changes, you can:
 2. **Manual resolution**: Navigate to the repo and resolve manually:
 
 ```bash
-cd ~/.local/share/opencode/opencode-sync/repo
+cd ~/.local/share/opencode/opencode-synced/repo
 git status
 git pull --rebase
 ```

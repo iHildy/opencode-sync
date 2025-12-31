@@ -1,5 +1,5 @@
 ---
-description: Initialize opencode-sync configuration
+description: Initialize opencode-synced configuration
 ---
 
 Use the opencode_sync tool with command "init".

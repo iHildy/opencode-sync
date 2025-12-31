@@ -46,8 +46,8 @@ export interface SyncPlan {
 const DEFAULT_CONFIG_NAME = 'opencode.json';
 const DEFAULT_CONFIGC_NAME = 'opencode.jsonc';
 const DEFAULT_AGENTS_NAME = 'AGENTS.md';
-const DEFAULT_SYNC_CONFIG_NAME = 'opencode-sync.jsonc';
-const DEFAULT_OVERRIDES_NAME = 'opencode-sync.overrides.jsonc';
+const DEFAULT_SYNC_CONFIG_NAME = 'opencode-synced.jsonc';
+const DEFAULT_OVERRIDES_NAME = 'opencode-synced.overrides.jsonc';
 const DEFAULT_STATE_NAME = 'sync-state.json';
 
 const CONFIG_DIRS = ['agent', 'command', 'mode', 'tool', 'themes', 'plugin'];
@@ -112,7 +112,7 @@ export function resolveSyncLocations(
     syncConfigPath: path.join(configRoot, DEFAULT_SYNC_CONFIG_NAME),
     overridesPath: path.join(configRoot, DEFAULT_OVERRIDES_NAME),
     statePath: path.join(dataRoot, DEFAULT_STATE_NAME),
-    defaultRepoDir: path.join(dataRoot, 'opencode-sync', 'repo'),
+    defaultRepoDir: path.join(dataRoot, 'opencode-synced', 'repo'),
   };
 }
 

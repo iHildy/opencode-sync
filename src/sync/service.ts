@@ -63,7 +63,7 @@ export function createSyncService(ctx: SyncServiceContext): SyncService {
     startupSync: async () => {
       const config = await loadSyncConfig(locations);
       if (!config) {
-        await showToast(ctx, 'Configure opencode-sync with /sync-init.', 'info');
+        await showToast(ctx, 'Configure opencode-synced with /sync-init.', 'info');
         return;
       }
       try {
@@ -75,7 +75,7 @@ export function createSyncService(ctx: SyncServiceContext): SyncService {
     status: async () => {
       const config = await loadSyncConfig(locations);
       if (!config) {
-        return 'opencode-sync is not configured. Run /sync-init to set it up.';
+        return 'opencode-synced is not configured. Run /sync-init to set it up.';
       }
 
       const repoRoot = resolveRepoRoot(config, locations);
@@ -145,7 +145,7 @@ export function createSyncService(ctx: SyncServiceContext): SyncService {
       await ensureSecretsPolicy(ctx, config);
 
       const lines = [
-        'opencode-sync configured.',
+        'opencode-synced configured.',
         `Repo: ${repoIdentifier}${created ? ' (created)' : ''}`,
         `Branch: ${resolveRepoBranch(config)}`,
         `Local repo: ${repoRoot}`,
@@ -320,7 +320,9 @@ async function getConfigOrThrow(
 ): Promise<ReturnType<typeof normalizeSyncConfig>> {
   const config = await loadSyncConfig(locations);
   if (!config) {
-    throw new SyncConfigMissingError('Missing opencode-sync config. Run /sync-init to set it up.');
+    throw new SyncConfigMissingError(
+      'Missing opencode-synced config. Run /sync-init to set it up.'
+    );
   }
   return config;
 }
@@ -414,7 +416,7 @@ async function showToast(
   message: string,
   variant: ToastVariant
 ): Promise<void> {
-  await ctx.client.tui.showToast({ body: { message: `opencode-sync: ${message}`, variant } });
+  await ctx.client.tui.showToast({ body: { message: `opencode-synced: ${message}`, variant } });
 }
 
 function formatError(error: unknown): string {
@@ -438,7 +440,7 @@ async function analyzeAndDecideResolution(
     const statusOutput = changes.join('\n');
 
     const prompt = [
-      'You are analyzing uncommitted changes in an opencode-sync repository.',
+      'You are analyzing uncommitted changes in an opencode-synced repository.',
       'Decide whether to commit these changes or discard them.',
       '',
       'IMPORTANT: Only choose "commit" if the changes appear to be legitimate config updates.',

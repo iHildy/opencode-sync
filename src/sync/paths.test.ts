@@ -34,8 +34,8 @@ describe('resolveSyncLocations', () => {
     const locations = resolveSyncLocations(env, 'linux');
 
     expect(locations.configRoot).toBe('/custom/opencode');
-    expect(locations.syncConfigPath).toBe('/custom/opencode/opencode-sync.jsonc');
-    expect(locations.overridesPath).toBe('/custom/opencode/opencode-sync.overrides.jsonc');
+    expect(locations.syncConfigPath).toBe('/custom/opencode/opencode-synced.jsonc');
+    expect(locations.overridesPath).toBe('/custom/opencode/opencode-synced.overrides.jsonc');
   });
 });
 

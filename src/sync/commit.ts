@@ -34,7 +34,7 @@ export async function generateCommitMessage(
   let sessionId: string | null = null;
 
   try {
-    const sessionResult = await ctx.client.session.create({ body: { title: 'opencode-sync' } });
+    const sessionResult = await ctx.client.session.create({ body: { title: 'opencode-synced' } });
     const session = unwrapData<{ id: string }>(sessionResult);
     sessionId = session?.id ?? null;
     if (!sessionId) return fallback;
