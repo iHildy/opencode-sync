@@ -178,9 +178,13 @@ export async function writeJsonFile(
   }
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
+export function isPlainObject(value: unknown): value is Record<string, unknown> {
   if (!value || typeof value !== 'object') return false;
   return Object.getPrototypeOf(value) === Object.prototype;
+}
+
+export function hasOwn(target: Record<string, unknown>, key: string): boolean {
+  return Object.hasOwn(target, key);
 }
 
 function stripJsonComments(input: string): string {

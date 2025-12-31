@@ -1,7 +1,14 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
-import { deepMerge, parseJsonc, pathExists, stripOverrides, writeJsonFile } from './config.js';
+import {
+  deepMerge,
+  hasOwn,
+  parseJsonc,
+  pathExists,
+  stripOverrides,
+  writeJsonFile,
+} from './config.js';
 import {
   extractMcpSecrets,
   hasOverrides,
@@ -283,7 +290,7 @@ function isDeepEqual(left: unknown, right: unknown): boolean {
     const rightKeys = Object.keys(right as Record<string, unknown>);
     if (leftKeys.length !== rightKeys.length) return false;
     for (const key of leftKeys) {
-      if (!Object.hasOwn(right, key)) return false;
+      if (!hasOwn(right as Record<string, unknown>, key)) return false;
       if (
         !isDeepEqual(
           (left as Record<string, unknown>)[key],

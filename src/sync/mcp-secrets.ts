@@ -1,4 +1,4 @@
-import { deepMerge } from './config.js';
+import { deepMerge, hasOwn, isPlainObject } from './config.js';
 
 export interface McpSecretExtraction {
   sanitizedConfig: Record<string, unknown>;
@@ -106,15 +106,7 @@ function getPlainObject(value: unknown): Record<string, unknown> | null {
   return isPlainObject(value) ? (value as Record<string, unknown>) : null;
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  if (!value || typeof value !== 'object') return false;
-  return Object.getPrototypeOf(value) === Object.prototype;
-}
-
 function cloneConfig(config: Record<string, unknown>): Record<string, unknown> {
-  if (typeof structuredClone === 'function') {
-    return structuredClone(config);
-  }
   return JSON.parse(JSON.stringify(config)) as Record<string, unknown>;
 }
 
@@ -136,7 +128,7 @@ export function stripOverrideKeys(
   const result: Record<string, unknown> = { ...base };
 
   for (const [key, removeValue] of Object.entries(toRemove)) {
-    if (!Object.hasOwn(result, key)) continue;
+    if (!hasOwn(result, key)) continue;
     const currentValue = result[key];
     if (isPlainObject(removeValue) && isPlainObject(currentValue)) {
       const stripped = stripOverrideKeys(
