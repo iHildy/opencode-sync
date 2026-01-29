@@ -341,15 +341,37 @@ async function applyExtraPathModes(
     await chmodIfExists(targetPath, entry.mode);
   }
 
+  if (entry.type !== 'dir') {
+    return;
+  }
+
   if (!entry.items || entry.items.length === 0) {
     return;
   }
 
   for (const item of entry.items) {
     if (item.mode === undefined) continue;
-    const itemPath = path.join(targetPath, item.relativePath);
+    const itemPath = resolveExtraPathItem(targetPath, item.relativePath);
+    if (!itemPath) continue;
     await chmodIfExists(itemPath, item.mode);
   }
+}
+
+function resolveExtraPathItem(basePath: string, relativePath: string): string | null {
+  if (!relativePath) return null;
+  if (path.isAbsolute(relativePath)) return null;
+
+  const resolvedBase = path.resolve(basePath);
+  const resolvedPath = path.resolve(basePath, relativePath);
+  const relative = path.relative(resolvedBase, resolvedPath);
+  if (relative === '..' || relative.startsWith(`..${path.sep}`)) {
+    return null;
+  }
+  if (path.isAbsolute(relative)) {
+    return null;
+  }
+
+  return resolvedPath;
 }
 
 function isDeepEqual(left: unknown, right: unknown): boolean {
