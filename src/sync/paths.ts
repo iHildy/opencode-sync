@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import path from 'node:path';
 import type { NormalizedSyncConfig, SyncConfig } from './config.js';
+import { isOnePasswordBackend } from './config.js';
 
 export interface XdgPaths {
   homeDir: string;
@@ -184,6 +185,7 @@ export function buildSyncPlan(
   const configManifestPath = path.join(repoConfigRoot, 'extra-manifest.json');
 
   const items: SyncItem[] = [];
+  const usingOnePasswordBackend = isOnePasswordBackend(config);
   const authJsonPath = path.join(dataRoot, 'auth.json');
   const mcpAuthJsonPath = path.join(dataRoot, 'mcp-auth.json');
 
@@ -222,22 +224,24 @@ export function buildSyncPlan(
   }
 
   if (config.includeSecrets) {
-    items.push(
-      {
-        localPath: authJsonPath,
-        repoPath: path.join(repoDataRoot, 'auth.json'),
-        type: 'file',
-        isSecret: true,
-        isConfigFile: false,
-      },
-      {
-        localPath: mcpAuthJsonPath,
-        repoPath: path.join(repoDataRoot, 'mcp-auth.json'),
-        type: 'file',
-        isSecret: true,
-        isConfigFile: false,
-      }
-    );
+    if (!usingOnePasswordBackend) {
+      items.push(
+        {
+          localPath: authJsonPath,
+          repoPath: path.join(repoDataRoot, 'auth.json'),
+          type: 'file',
+          isSecret: true,
+          isConfigFile: false,
+        },
+        {
+          localPath: mcpAuthJsonPath,
+          repoPath: path.join(repoDataRoot, 'mcp-auth.json'),
+          type: 'file',
+          isSecret: true,
+          isConfigFile: false,
+        }
+      );
+    }
 
     if (config.includeSessions) {
       for (const dirName of SESSION_DIRS) {
@@ -264,8 +268,17 @@ export function buildSyncPlan(
     }
   }
 
+  const extraSecretPaths = config.includeSecrets ? config.extraSecretPaths : [];
+  const filteredExtraSecrets = usingOnePasswordBackend
+    ? extraSecretPaths.filter(
+        (entry) =>
+          !isSamePath(entry, authJsonPath, locations.xdg.homeDir, platform) &&
+          !isSamePath(entry, mcpAuthJsonPath, locations.xdg.homeDir, platform)
+      )
+    : extraSecretPaths;
+
   const extraSecrets = buildExtraPathPlan(
-    config.includeSecrets ? config.extraSecretPaths : [],
+    filteredExtraSecrets,
     locations,
     repoExtraDir,
     manifestPath,

@@ -77,6 +77,35 @@ describe('buildSyncPlan', () => {
     expect(plan.extraConfigs.allowlist.length).toBe(1);
   });
 
+  it('excludes auth files when using 1password backend', () => {
+    const env = { HOME: '/home/test' } as NodeJS.ProcessEnv;
+    const locations = resolveSyncLocations(env, 'linux');
+    const config: SyncConfig = {
+      repo: { owner: 'acme', name: 'config' },
+      includeSecrets: true,
+      secretsBackend: {
+        type: '1password',
+        vault: 'Personal',
+        documents: {
+          authJson: 'opencode-auth.json',
+          mcpAuthJson: 'opencode-mcp-auth.json',
+        },
+      },
+    };
+
+    const plan = buildSyncPlan(normalizeSyncConfig(config), locations, '/repo', 'linux');
+
+    const authItem = plan.items.find((item) =>
+      item.localPath.endsWith('/.local/share/opencode/auth.json')
+    );
+    const mcpItem = plan.items.find((item) =>
+      item.localPath.endsWith('/.local/share/opencode/mcp-auth.json')
+    );
+
+    expect(authItem).toBeUndefined();
+    expect(mcpItem).toBeUndefined();
+  });
+
   it('includes model favorites by default and allows disabling', () => {
     const env = { HOME: '/home/test' } as NodeJS.ProcessEnv;
     const locations = resolveSyncLocations(env, 'linux');

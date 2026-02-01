@@ -10,6 +10,20 @@ export interface SyncRepoConfig {
   branch?: string;
 }
 
+export type SecretsBackendType = '1password';
+
+export interface SecretsBackendDocuments {
+  authJson?: string;
+  mcpAuthJson?: string;
+  envFile?: string;
+}
+
+export interface SecretsBackendConfig {
+  type: SecretsBackendType;
+  vault?: string;
+  documents?: SecretsBackendDocuments;
+}
+
 export interface SyncConfig {
   repo?: SyncRepoConfig;
   localRepoPath?: string;
@@ -18,6 +32,7 @@ export interface SyncConfig {
   includeSessions?: boolean;
   includePromptStash?: boolean;
   includeModelFavorites?: boolean;
+  secretsBackend?: SecretsBackendConfig;
   extraSecretPaths?: string[];
   extraConfigPaths?: string[];
 }
@@ -28,6 +43,7 @@ export interface NormalizedSyncConfig extends SyncConfig {
   includeSessions: boolean;
   includePromptStash: boolean;
   includeModelFavorites: boolean;
+  secretsBackend?: SecretsBackendConfig;
   extraSecretPaths: string[];
   extraConfigPaths: string[];
 }
@@ -57,6 +73,25 @@ export async function chmodIfExists(filePath: string, mode: number): Promise<voi
   }
 }
 
+export function normalizeSecretsBackend(
+  input: SyncConfig['secretsBackend']
+): SecretsBackendConfig | undefined {
+  if (!input || typeof input !== 'object') return undefined;
+  if (input.type !== '1password') return undefined;
+
+  const vault = typeof input.vault === 'string' ? input.vault : undefined;
+  const documentsInput = isPlainObject(input.documents) ? input.documents : {};
+
+  const documents: SecretsBackendDocuments = {
+    authJson: typeof documentsInput.authJson === 'string' ? documentsInput.authJson : undefined,
+    mcpAuthJson:
+      typeof documentsInput.mcpAuthJson === 'string' ? documentsInput.mcpAuthJson : undefined,
+    envFile: typeof documentsInput.envFile === 'string' ? documentsInput.envFile : undefined,
+  };
+
+  return { type: '1password', vault, documents };
+}
+
 export function normalizeSyncConfig(config: SyncConfig): NormalizedSyncConfig {
   const includeSecrets = Boolean(config.includeSecrets);
   const includeModelFavorites = config.includeModelFavorites !== false;
@@ -66,6 +101,7 @@ export function normalizeSyncConfig(config: SyncConfig): NormalizedSyncConfig {
     includeSessions: Boolean(config.includeSessions),
     includePromptStash: Boolean(config.includePromptStash),
     includeModelFavorites,
+    secretsBackend: normalizeSecretsBackend(config.secretsBackend),
     extraSecretPaths: Array.isArray(config.extraSecretPaths) ? config.extraSecretPaths : [],
     extraConfigPaths: Array.isArray(config.extraConfigPaths) ? config.extraConfigPaths : [],
     localRepoPath: config.localRepoPath,
@@ -75,6 +111,10 @@ export function normalizeSyncConfig(config: SyncConfig): NormalizedSyncConfig {
 
 export function canCommitMcpSecrets(config: SyncConfig): boolean {
   return Boolean(config.includeSecrets) && Boolean(config.includeMcpSecrets);
+}
+
+export function isOnePasswordBackend(config: SyncConfig): boolean {
+  return config.secretsBackend?.type === '1password';
 }
 
 export async function loadSyncConfig(
