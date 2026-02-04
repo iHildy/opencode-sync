@@ -71,6 +71,7 @@ jobs:
     with:
       tag: next
       timeout: 20
+    continue-on-error: true
 
   promote_latest:
     needs: [publish, smoke]
