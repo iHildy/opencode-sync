@@ -31,8 +31,7 @@ Add a new optional config block:
     "vault": "Personal",
     "documents": {
       "authJson": "opencode-auth.json",
-      "mcpAuthJson": "opencode-mcp-auth.json",
-      "envFile": ".env.opencode" // optional: store+restore the env file too
+      "mcpAuthJson": "opencode-mcp-auth.json"
     }
   }
 }
@@ -79,7 +78,7 @@ documents.authJson required
 
 documents.mcpAuthJson required
 
-documents.envFile optional
+documents.authJson and documents.mcpAuthJson must be unique
 
 3) Add a SecretsBackend interface
 Internal interface:
@@ -113,20 +112,18 @@ if local file doesn’t exist: skip.
 
 create doc if missing; otherwise edit doc.
 
-Files to manage:
+Files to manage (XDG-aware):
 
-~/.local/share/opencode/auth.json
+Linux/macOS: ~/.local/share/opencode/auth.json and ~/.local/share/opencode/mcp-auth.json
 
-~/.local/share/opencode/mcp-auth.json
-
-Optional: ~/.config/opencode/.env.opencode (only if configured)
+Windows: %LOCALAPPDATA%\opencode\auth.json and %LOCALAPPDATA%\opencode\mcp-auth.json
 
 5) Wire backend into sync lifecycle
 Hook points:
 
 After /sync-pull applies repo changes -> call backend.pull()
 
-Before /sync-push commits/pushes -> call backend.push()
+After /sync-push successfully commits/pushes (or when no repo changes) -> call backend.push()
 
 Add explicit commands:
 
