@@ -262,10 +262,7 @@ async function pullDocument(
     } catch (error) {
       const retryLookup = await lookupDocumentWithRetry($, vault, documentName);
       if (!retryLookup) {
-        if (error instanceof SyncCommandError) {
-          throw error;
-        }
-        throw new SyncCommandError(`1Password download failed: ${formatShellError(error)}`);
+        throw error;
       }
       if (retryLookup.state === 'missing') {
         return;
@@ -276,10 +273,7 @@ async function pullDocument(
             'Rename them to be unique.'
         );
       }
-      if (error instanceof SyncCommandError) {
-        throw error;
-      }
-      throw new SyncCommandError(`1Password download failed: ${formatShellError(error)}`);
+      throw error;
     }
     await replaceFile(tempPath, targetPath);
   } finally {
@@ -320,10 +314,7 @@ async function pushDocument(
   } catch (error) {
     const retryLookup = await lookupDocumentWithRetry($, vault, documentName);
     if (!retryLookup) {
-      if (error instanceof SyncCommandError) {
-        throw error;
-      }
-      throw new SyncCommandError(`1Password update failed: ${formatShellError(error)}`);
+      throw error;
     }
     if (retryLookup.state === 'missing') {
       try {
@@ -339,10 +330,7 @@ async function pushDocument(
           'Rename them to be unique.'
       );
     }
-    if (error instanceof SyncCommandError) {
-      throw error;
-    }
-    throw new SyncCommandError(`1Password update failed: ${formatShellError(error)}`);
+    throw error;
   }
 }
 
@@ -374,7 +362,11 @@ async function opDocumentEdit(
   name: string,
   sourcePath: string
 ): Promise<void> {
-  await $`op document edit ${name} --vault ${vault} ${sourcePath}`.quiet();
+  try {
+    await $`op document edit ${name} --vault ${vault} ${sourcePath}`.quiet();
+  } catch (error) {
+    throw new SyncCommandError(`1Password update failed: ${formatShellError(error)}`);
+  }
 }
 
 async function lookupDocumentWithRetry(
