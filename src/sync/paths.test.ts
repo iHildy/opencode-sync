@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { SyncConfig } from './config.js';
+import { normalizeSyncConfig } from './config.js';
 import { buildSyncPlan, resolveSyncLocations, resolveXdgPaths } from './paths.js';
 
 describe('resolveXdgPaths', () => {
@@ -50,12 +51,40 @@ describe('buildSyncPlan', () => {
       extraConfigPaths: ['/home/test/.config/opencode/custom.json'],
     };
 
-    const plan = buildSyncPlan(config, locations, '/repo', 'linux');
+    const plan = buildSyncPlan(normalizeSyncConfig(config), locations, '/repo', 'linux');
     const secretItems = plan.items.filter((item) => item.isSecret);
 
     expect(secretItems.length).toBe(0);
     expect(plan.extraSecrets.allowlist.length).toBe(0);
     expect(plan.extraConfigs.allowlist.length).toBe(1);
+  });
+
+  it('includes opencode-synced config file in items', () => {
+    const env = { HOME: '/home/test' } as NodeJS.ProcessEnv;
+    const locations = resolveSyncLocations(env, 'linux');
+    const config: SyncConfig = {
+      repo: { owner: 'acme', name: 'config' },
+      includeSecrets: false,
+    };
+
+    const plan = buildSyncPlan(normalizeSyncConfig(config), locations, '/repo', 'linux');
+    const syncItem = plan.items.find((item) => item.localPath === locations.syncConfigPath);
+
+    expect(syncItem).toBeTruthy();
+  });
+
+  it('filters sync config from extra config paths', () => {
+    const env = { HOME: '/home/test' } as NodeJS.ProcessEnv;
+    const locations = resolveSyncLocations(env, 'linux');
+    const config: SyncConfig = {
+      repo: { owner: 'acme', name: 'config' },
+      includeSecrets: false,
+      extraConfigPaths: [locations.syncConfigPath],
+    };
+
+    const plan = buildSyncPlan(normalizeSyncConfig(config), locations, '/repo', 'linux');
+
+    expect(plan.extraConfigs.allowlist.length).toBe(0);
   });
 
   it('includes secrets when includeSecrets is true', () => {
@@ -68,12 +97,41 @@ describe('buildSyncPlan', () => {
       extraConfigPaths: ['/home/test/.config/opencode/custom.json'],
     };
 
-    const plan = buildSyncPlan(config, locations, '/repo', 'linux');
+    const plan = buildSyncPlan(normalizeSyncConfig(config), locations, '/repo', 'linux');
     const secretItems = plan.items.filter((item) => item.isSecret);
 
     expect(secretItems.length).toBe(2);
     expect(plan.extraSecrets.allowlist.length).toBe(1);
     expect(plan.extraConfigs.allowlist.length).toBe(1);
+  });
+
+  it('excludes auth files when using 1password backend', () => {
+    const env = { HOME: '/home/test' } as NodeJS.ProcessEnv;
+    const locations = resolveSyncLocations(env, 'linux');
+    const config: SyncConfig = {
+      repo: { owner: 'acme', name: 'config' },
+      includeSecrets: true,
+      secretsBackend: {
+        type: '1password',
+        vault: 'Personal',
+        documents: {
+          authJson: 'opencode-auth.json',
+          mcpAuthJson: 'opencode-mcp-auth.json',
+        },
+      },
+    };
+
+    const plan = buildSyncPlan(normalizeSyncConfig(config), locations, '/repo', 'linux');
+
+    const authItem = plan.items.find((item) =>
+      item.localPath.endsWith('/.local/share/opencode/auth.json')
+    );
+    const mcpItem = plan.items.find((item) =>
+      item.localPath.endsWith('/.local/share/opencode/mcp-auth.json')
+    );
+
+    expect(authItem).toBeUndefined();
+    expect(mcpItem).toBeUndefined();
   });
 
   it('includes model favorites by default and allows disabling', () => {
@@ -84,7 +142,7 @@ describe('buildSyncPlan', () => {
       includeSecrets: false,
     };
 
-    const plan = buildSyncPlan(config, locations, '/repo', 'linux');
+    const plan = buildSyncPlan(normalizeSyncConfig(config), locations, '/repo', 'linux');
     const favoritesItem = plan.items.find((item) =>
       item.localPath.endsWith('/.local/state/opencode/model.json')
     );
@@ -92,7 +150,7 @@ describe('buildSyncPlan', () => {
     expect(favoritesItem).toBeTruthy();
 
     const disabledPlan = buildSyncPlan(
-      { ...config, includeModelFavorites: false },
+      normalizeSyncConfig({ ...config, includeModelFavorites: false }),
       locations,
       '/repo',
       'linux'

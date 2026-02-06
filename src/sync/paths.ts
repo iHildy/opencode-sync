@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import path from 'node:path';
-
-import type { SyncConfig } from './config.js';
+import type { NormalizedSyncConfig, SyncConfig } from './config.js';
+import { hasSecretsBackend } from './config.js';
 
 export interface XdgPaths {
   homeDir: string;
@@ -167,7 +167,7 @@ export function resolveRepoRoot(config: SyncConfig | null, locations: SyncLocati
 }
 
 export function buildSyncPlan(
-  config: SyncConfig,
+  config: NormalizedSyncConfig,
   locations: SyncLocations,
   repoRoot: string,
   platform: NodeJS.Platform = process.platform
@@ -185,6 +185,9 @@ export function buildSyncPlan(
   const configManifestPath = path.join(repoConfigRoot, 'extra-manifest.json');
 
   const items: SyncItem[] = [];
+  const usingSecretsBackend = hasSecretsBackend(config);
+  const authJsonPath = path.join(dataRoot, 'auth.json');
+  const mcpAuthJsonPath = path.join(dataRoot, 'mcp-auth.json');
 
   const addFile = (name: string, isSecret: boolean, isConfigFile: boolean): void => {
     items.push({
@@ -199,6 +202,7 @@ export function buildSyncPlan(
   addFile(DEFAULT_CONFIG_NAME, false, true);
   addFile(DEFAULT_CONFIGC_NAME, false, true);
   addFile(DEFAULT_AGENTS_NAME, false, false);
+  addFile(DEFAULT_SYNC_CONFIG_NAME, false, false);
 
   for (const dirName of CONFIG_DIRS) {
     items.push({
@@ -221,22 +225,24 @@ export function buildSyncPlan(
   }
 
   if (config.includeSecrets) {
-    items.push(
-      {
-        localPath: path.join(dataRoot, 'auth.json'),
-        repoPath: path.join(repoDataRoot, 'auth.json'),
-        type: 'file',
-        isSecret: true,
-        isConfigFile: false,
-      },
-      {
-        localPath: path.join(dataRoot, 'mcp-auth.json'),
-        repoPath: path.join(repoDataRoot, 'mcp-auth.json'),
-        type: 'file',
-        isSecret: true,
-        isConfigFile: false,
-      }
-    );
+    if (!usingSecretsBackend) {
+      items.push(
+        {
+          localPath: authJsonPath,
+          repoPath: path.join(repoDataRoot, 'auth.json'),
+          type: 'file',
+          isSecret: true,
+          isConfigFile: false,
+        },
+        {
+          localPath: mcpAuthJsonPath,
+          repoPath: path.join(repoDataRoot, 'mcp-auth.json'),
+          type: 'file',
+          isSecret: true,
+          isConfigFile: false,
+        }
+      );
+    }
 
     if (config.includeSessions) {
       for (const dirName of SESSION_DIRS) {
@@ -263,16 +269,29 @@ export function buildSyncPlan(
     }
   }
 
+  const extraSecretPaths = config.includeSecrets ? config.extraSecretPaths : [];
+  const filteredExtraSecrets = usingSecretsBackend
+    ? extraSecretPaths.filter(
+        (entry) =>
+          !isSamePath(entry, authJsonPath, locations.xdg.homeDir, platform) &&
+          !isSamePath(entry, mcpAuthJsonPath, locations.xdg.homeDir, platform)
+      )
+    : extraSecretPaths;
+
   const extraSecrets = buildExtraPathPlan(
-    config.includeSecrets ? config.extraSecretPaths : [],
+    filteredExtraSecrets,
     locations,
     repoExtraDir,
     manifestPath,
     platform
   );
 
+  const extraConfigPaths = (config.extraConfigPaths ?? []).filter(
+    (entry) => !isSamePath(entry, locations.syncConfigPath, locations.xdg.homeDir, platform)
+  );
+
   const extraConfigs = buildExtraPathPlan(
-    config.extraConfigPaths,
+    extraConfigPaths,
     locations,
     repoConfigExtraDir,
     configManifestPath,

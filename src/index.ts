@@ -117,7 +117,18 @@ export const opencodeConfigSync: Plugin = async (ctx) => {
     description: 'Manage opencode config sync with a GitHub repo',
     args: {
       command: tool.schema
-        .enum(['status', 'init', 'link', 'pull', 'push', 'enable-secrets', 'resolve'])
+        .enum([
+          'status',
+          'init',
+          'link',
+          'pull',
+          'push',
+          'enable-secrets',
+          'resolve',
+          'secrets-pull',
+          'secrets-push',
+          'secrets-status',
+        ])
         .describe('Sync command to execute'),
       repo: tool.schema.string().optional().describe('Repo owner/name or URL'),
       owner: tool.schema.string().optional().describe('Repo owner'),
@@ -181,6 +192,15 @@ export const opencodeConfigSync: Plugin = async (ctx) => {
         }
         if (args.command === 'push') {
           return await service.push();
+        }
+        if (args.command === 'secrets-pull') {
+          return await service.secretsPull();
+        }
+        if (args.command === 'secrets-push') {
+          return await service.secretsPush();
+        }
+        if (args.command === 'secrets-status') {
+          return await service.secretsStatus();
         }
         if (args.command === 'enable-secrets') {
           return await service.enableSecrets({
