@@ -23,6 +23,36 @@ describe('resolveXdgPaths', () => {
     expect(paths.configDir).toBe('C:\\Users\\Test\\AppData\\Roaming');
     expect(paths.dataDir).toBe('C:\\Users\\Test\\AppData\\Local');
   });
+
+  it('respects XDG env vars on windows', () => {
+    const env = {
+      USERPROFILE: 'C:\\Users\\Test',
+      APPDATA: 'C:\\Users\\Test\\AppData\\Roaming',
+      LOCALAPPDATA: 'C:\\Users\\Test\\AppData\\Local',
+      XDG_CONFIG_HOME: 'C:\\Users\\Test\\.config',
+      XDG_DATA_HOME: 'C:\\Users\\Test\\.local\\share',
+      XDG_STATE_HOME: 'C:\\Users\\Test\\.local\\state',
+    } as NodeJS.ProcessEnv;
+    const paths = resolveXdgPaths(env, 'win32');
+
+    expect(paths.configDir).toBe('C:\\Users\\Test\\.config');
+    expect(paths.dataDir).toBe('C:\\Users\\Test\\.local\\share');
+    expect(paths.stateDir).toBe('C:\\Users\\Test\\.local\\state');
+  });
+
+  it('prefers XDG on windows when only XDG_CONFIG_HOME is set', () => {
+    const env = {
+      USERPROFILE: 'C:\\Users\\Test',
+      APPDATA: 'C:\\Users\\Test\\AppData\\Roaming',
+      LOCALAPPDATA: 'C:\\Users\\Test\\AppData\\Local',
+      XDG_CONFIG_HOME: 'C:\\Users\\Test\\.config',
+    } as NodeJS.ProcessEnv;
+    const paths = resolveXdgPaths(env, 'win32');
+
+    expect(paths.configDir).toBe('C:\\Users\\Test\\.config');
+    expect(paths.dataDir).toBe('C:\\Users\\Test\\.local\\share');
+    expect(paths.stateDir).toBe('C:\\Users\\Test\\.local\\state');
+  });
 });
 
 describe('resolveSyncLocations', () => {

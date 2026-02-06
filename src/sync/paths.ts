@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import path from 'node:path';
 
 import type { SyncConfig } from './config.js';
@@ -83,9 +84,25 @@ export function resolveXdgPaths(
   }
 
   if (platform === 'win32') {
+    // On Windows, prefer XDG environment variables when explicitly set.
+    // Some tools (including opencode itself) use XDG-style paths on Windows
+    // (e.g. ~/.config, ~/.local/share, ~/.local/state) instead of AppData.
+    // If XDG vars are set, honor them. Otherwise, detect whether opencode
+    // is using XDG layout by checking for ~/.config/opencode, and fall back
+    // to standard Windows paths only if XDG paths don't exist.
+    const xdgConfigDir = env.XDG_CONFIG_HOME ?? path.join(homeDir, '.config');
+    const xdgDataDir = env.XDG_DATA_HOME ?? path.join(homeDir, '.local', 'share');
+    const xdgStateDir = env.XDG_STATE_HOME ?? path.join(homeDir, '.local', 'state');
+
+    const hasXdgEnv = Boolean(env.XDG_CONFIG_HOME ?? env.XDG_DATA_HOME ?? env.XDG_STATE_HOME);
+    const xdgConfigExists = fs.existsSync(path.join(xdgConfigDir, 'opencode'));
+
+    if (hasXdgEnv || xdgConfigExists) {
+      return { homeDir, configDir: xdgConfigDir, dataDir: xdgDataDir, stateDir: xdgStateDir };
+    }
+
     const configDir = env.APPDATA ?? path.join(homeDir, 'AppData', 'Roaming');
     const dataDir = env.LOCALAPPDATA ?? path.join(homeDir, 'AppData', 'Local');
-    // Windows doesn't have XDG_STATE_HOME equivalent, use LOCALAPPDATA
     const stateDir = env.LOCALAPPDATA ?? path.join(homeDir, 'AppData', 'Local');
     return { homeDir, configDir, dataDir, stateDir };
   }
