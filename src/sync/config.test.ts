@@ -3,11 +3,12 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
-
+import type { SyncConfig } from './config.js';
 import {
   canCommitMcpSecrets,
   chmodIfExists,
   deepMerge,
+  normalizeSecretsBackend,
   normalizeSyncConfig,
   parseJsonc,
   stripOverrides,
@@ -76,6 +77,44 @@ describe('normalizeSyncConfig', () => {
   it('enables model favorites by default', () => {
     const normalized = normalizeSyncConfig({});
     expect(normalized.includeModelFavorites).toBe(true);
+  });
+
+  it('defaults extra path lists when omitted', () => {
+    const normalized = normalizeSyncConfig({ includeSecrets: true });
+    expect(normalized.extraSecretPaths).toEqual([]);
+    expect(normalized.extraConfigPaths).toEqual([]);
+  });
+});
+
+describe('normalizeSecretsBackend', () => {
+  it('returns undefined when backend is missing', () => {
+    expect(normalizeSecretsBackend(undefined)).toBeUndefined();
+  });
+
+  it('preserves unknown backend types for validation', () => {
+    const unknownBackend = { type: 'unknown' } as unknown as SyncConfig['secretsBackend'];
+    expect(normalizeSecretsBackend(unknownBackend)).toEqual({ type: 'unknown' });
+  });
+
+  it('normalizes 1password documents', () => {
+    const raw = {
+      type: '1password',
+      vault: 'Personal',
+      documents: {
+        authJson: 'auth.json',
+        mcpAuthJson: 'mcp-auth.json',
+        extra: 'ignored',
+      },
+    } as unknown as SyncConfig['secretsBackend'];
+
+    expect(normalizeSecretsBackend(raw)).toEqual({
+      type: '1password',
+      vault: 'Personal',
+      documents: {
+        authJson: 'auth.json',
+        mcpAuthJson: 'mcp-auth.json',
+      },
+    });
   });
 });
 

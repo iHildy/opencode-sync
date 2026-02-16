@@ -10,6 +10,20 @@ export interface SyncRepoConfig {
   branch?: string;
 }
 
+export type KnownSecretsBackendType = '1password';
+export type SecretsBackendType = KnownSecretsBackendType | (string & {});
+
+export interface SecretsBackendDocuments {
+  authJson?: string;
+  mcpAuthJson?: string;
+}
+
+export interface SecretsBackendConfig {
+  type: SecretsBackendType;
+  vault?: string;
+  documents?: SecretsBackendDocuments;
+}
+
 export interface SyncConfig {
   repo?: SyncRepoConfig;
   localRepoPath?: string;
@@ -18,14 +32,27 @@ export interface SyncConfig {
   includeSessions?: boolean;
   includePromptStash?: boolean;
   includeModelFavorites?: boolean;
+  secretsBackend?: SecretsBackendConfig;
   extraSecretPaths?: string[];
   extraConfigPaths?: string[];
+}
+
+export interface NormalizedSyncConfig extends SyncConfig {
+  includeSecrets: boolean;
+  includeMcpSecrets: boolean;
+  includeSessions: boolean;
+  includePromptStash: boolean;
+  includeModelFavorites: boolean;
+  secretsBackend?: SecretsBackendConfig;
+  extraSecretPaths: string[];
+  extraConfigPaths: string[];
 }
 
 export interface SyncState {
   lastPull?: string;
   lastPush?: string;
   lastRemoteUpdate?: string;
+  lastSecretsHash?: string;
 }
 
 export async function pathExists(filePath: string): Promise<boolean> {
@@ -47,7 +74,36 @@ export async function chmodIfExists(filePath: string, mode: number): Promise<voi
   }
 }
 
-export function normalizeSyncConfig(config: SyncConfig): SyncConfig {
+export function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== 'object') return false;
+  return Object.getPrototypeOf(value) === Object.prototype;
+}
+
+export function normalizeSecretsBackend(
+  input: SyncConfig['secretsBackend']
+): SecretsBackendConfig | undefined {
+  if (!input || typeof input !== 'object') return undefined;
+
+  const type = typeof input.type === 'string' ? input.type : undefined;
+  if (!type) return undefined;
+
+  if (type !== '1password') {
+    return { type };
+  }
+
+  const vault = typeof input.vault === 'string' ? input.vault : undefined;
+  const documentsInput = isPlainObject(input.documents) ? input.documents : {};
+
+  const documents: SecretsBackendDocuments = {
+    authJson: typeof documentsInput.authJson === 'string' ? documentsInput.authJson : undefined,
+    mcpAuthJson:
+      typeof documentsInput.mcpAuthJson === 'string' ? documentsInput.mcpAuthJson : undefined,
+  };
+
+  return { type: '1password', vault, documents };
+}
+
+export function normalizeSyncConfig(config: SyncConfig): NormalizedSyncConfig {
   const includeSecrets = Boolean(config.includeSecrets);
   const includeModelFavorites = config.includeModelFavorites !== false;
   return {
@@ -56,6 +112,7 @@ export function normalizeSyncConfig(config: SyncConfig): SyncConfig {
     includeSessions: Boolean(config.includeSessions),
     includePromptStash: Boolean(config.includePromptStash),
     includeModelFavorites,
+    secretsBackend: normalizeSecretsBackend(config.secretsBackend),
     extraSecretPaths: Array.isArray(config.extraSecretPaths) ? config.extraSecretPaths : [],
     extraConfigPaths: Array.isArray(config.extraConfigPaths) ? config.extraConfigPaths : [],
     localRepoPath: config.localRepoPath,
@@ -67,7 +124,13 @@ export function canCommitMcpSecrets(config: SyncConfig): boolean {
   return Boolean(config.includeSecrets) && Boolean(config.includeMcpSecrets);
 }
 
-export async function loadSyncConfig(locations: SyncLocations): Promise<SyncConfig | null> {
+export function hasSecretsBackend(config: SyncConfig | NormalizedSyncConfig): boolean {
+  return Boolean(config.secretsBackend);
+}
+
+export async function loadSyncConfig(
+  locations: SyncLocations
+): Promise<NormalizedSyncConfig | null> {
   if (!(await pathExists(locations.syncConfigPath))) {
     return null;
   }
@@ -107,6 +170,14 @@ export async function loadState(locations: SyncLocations): Promise<SyncState> {
 export async function writeState(locations: SyncLocations, state: SyncState): Promise<void> {
   await fs.mkdir(path.dirname(locations.statePath), { recursive: true });
   await writeJsonFile(locations.statePath, state, { jsonc: false });
+}
+
+export async function updateState(
+  locations: SyncLocations,
+  update: Partial<SyncState>
+): Promise<void> {
+  const existing = await loadState(locations);
+  await writeState(locations, { ...existing, ...update });
 }
 
 export function applyOverridesToRuntimeConfig(
@@ -264,11 +335,6 @@ export async function writeJsonFile(
   if (options.mode !== undefined) {
     await chmodIfExists(filePath, options.mode);
   }
-}
-
-export function isPlainObject(value: unknown): value is Record<string, unknown> {
-  if (!value || typeof value !== 'object') return false;
-  return Object.getPrototypeOf(value) === Object.prototype;
 }
 
 export function hasOwn(target: Record<string, unknown>, key: string): boolean {

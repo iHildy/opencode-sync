@@ -69,4 +69,4 @@
 
 - **Type**: ES Module package for opencode plugin system
 - **Target**: Bun runtime, ES2021+
-- **Purpose**: Sync global opencode config across machines via GitHub
+- **Purpose**: Sync global opencode config across machines via GitHub, with optional secrets support (e.g., 1Password backend)
