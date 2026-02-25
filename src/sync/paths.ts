@@ -126,6 +126,32 @@ export function expandHome(inputPath: string, homeDir: string): string {
   return inputPath;
 }
 
+function collapseHome(
+  inputPath: string,
+  homeDir: string,
+  platform: NodeJS.Platform = process.platform
+): string {
+  if (!inputPath) return inputPath;
+  if (!homeDir) return inputPath;
+
+  if (inputPath === '~' || inputPath.startsWith('~/')) return inputPath;
+
+  // Best-effort on POSIX platforms.
+  if (platform === 'win32') return inputPath;
+
+  const resolvedHome = path.resolve(homeDir);
+  const resolvedPath = path.resolve(inputPath);
+
+  if (resolvedPath === resolvedHome) return '~';
+
+  const prefix = `${resolvedHome}${path.sep}`;
+  if (resolvedPath.startsWith(prefix)) {
+    return `~/${resolvedPath.slice(prefix.length)}`;
+  }
+
+  return inputPath;
+}
+
 export function normalizePath(
   inputPath: string,
   homeDir: string,
@@ -315,11 +341,20 @@ function buildExtraPathPlan(
   manifestPath: string,
   platform: NodeJS.Platform
 ): ExtraPathPlan {
-  const allowlist = (inputPaths ?? []).map((entry) =>
+  // Keep sourcePath portable ("~/...") so the manifest and hashed filenames
+  // are stable across machines/OSes. Use a normalized allowlist for matching.
+  const rawPaths = (inputPaths ?? []).filter(
+    (entry) => typeof entry === 'string' && entry.length > 0
+  );
+  const portablePaths = rawPaths.map((entry) =>
+    collapseHome(entry, locations.xdg.homeDir, platform)
+  );
+
+  const allowlist = portablePaths.map((entry) =>
     normalizePath(entry, locations.xdg.homeDir, platform)
   );
 
-  const entries = allowlist.map((sourcePath) => ({
+  const entries = portablePaths.map((sourcePath) => ({
     sourcePath,
     repoPath: path.join(repoExtraDir, encodeExtraPath(sourcePath)),
   }));

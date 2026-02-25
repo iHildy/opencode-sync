@@ -105,6 +105,44 @@ describe('buildSyncPlan', () => {
     expect(plan.extraConfigs.allowlist.length).toBe(1);
   });
 
+  it('stores extra manifest sourcePath using portable home paths', () => {
+    const env = { HOME: '/home/test' } as NodeJS.ProcessEnv;
+    const locations = resolveSyncLocations(env, 'linux');
+    const config: SyncConfig = {
+      repo: { owner: 'acme', name: 'config' },
+      includeSecrets: true,
+      extraSecretPaths: ['/home/test/.ssh/id_rsa'],
+      extraConfigPaths: [
+        '/home/test/.config/opencode/custom.json',
+        '~/.config/opencode/other.json',
+      ],
+    };
+
+    const plan = buildSyncPlan(normalizeSyncConfig(config), locations, '/repo', 'linux');
+    const sources = plan.extraConfigs.entries.map((e) => e.sourcePath).sort();
+
+    expect(sources).toEqual(['~/.config/opencode/custom.json', '~/.config/opencode/other.json']);
+    expect(sources.some((p) => p.includes('/home/test'))).toBe(false);
+
+    // Allowlist remains normalized for matching.
+    expect(plan.extraConfigs.allowlist).toContain('/home/test/.config/opencode/custom.json');
+    expect(plan.extraConfigs.allowlist).toContain('/home/test/.config/opencode/other.json');
+  });
+
+  it('keeps extra manifest sourcePath absolute when outside home dir', () => {
+    const env = { HOME: '/home/test' } as NodeJS.ProcessEnv;
+    const locations = resolveSyncLocations(env, 'linux');
+    const config: SyncConfig = {
+      repo: { owner: 'acme', name: 'config' },
+      includeSecrets: false,
+      extraConfigPaths: ['/etc/hosts'],
+    };
+
+    const plan = buildSyncPlan(normalizeSyncConfig(config), locations, '/repo', 'linux');
+
+    expect(plan.extraConfigs.entries.map((e) => e.sourcePath)).toEqual(['/etc/hosts']);
+  });
+
   it('excludes auth files when using 1password backend', () => {
     const env = { HOME: '/home/test' } as NodeJS.ProcessEnv;
     const locations = resolveSyncLocations(env, 'linux');
