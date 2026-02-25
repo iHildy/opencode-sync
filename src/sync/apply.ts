@@ -17,7 +17,7 @@ import {
   stripOverrideKeys,
 } from './mcp-secrets.js';
 import type { ExtraPathPlan, SyncItem, SyncPlan } from './paths.js';
-import { normalizePath } from './paths.js';
+import { expandHome, normalizePath } from './paths.js';
 
 type ExtraPathType = 'file' | 'dir';
 
@@ -241,7 +241,7 @@ async function applyExtraPaths(plan: SyncPlan, extra: ExtraPathPlan): Promise<vo
     const repoPath = path.isAbsolute(entry.repoPath)
       ? entry.repoPath
       : path.join(plan.repoRoot, entry.repoPath);
-    const localPath = entry.sourcePath;
+    const localPath = path.resolve(expandHome(entry.sourcePath, plan.homeDir));
     const entryType: ExtraPathType = entry.type ?? 'file';
 
     if (!(await pathExists(repoPath))) continue;
@@ -266,13 +266,15 @@ async function writeExtraPathManifest(plan: SyncPlan, extra: ExtraPathPlan): Pro
 
   for (const entry of extra.entries) {
     const sourcePath = entry.sourcePath;
-    if (!(await pathExists(sourcePath))) {
+    const actualSourcePath = path.resolve(expandHome(sourcePath, plan.homeDir));
+
+    if (!(await pathExists(actualSourcePath))) {
       continue;
     }
-    const stat = await fs.stat(sourcePath);
+    const stat = await fs.stat(actualSourcePath);
     if (stat.isDirectory()) {
-      await copyDirRecursive(sourcePath, entry.repoPath);
-      const items = await collectExtraPathItems(sourcePath, sourcePath);
+      await copyDirRecursive(actualSourcePath, entry.repoPath);
+      const items = await collectExtraPathItems(actualSourcePath, actualSourcePath);
       entries.push({
         sourcePath,
         repoPath: path.relative(plan.repoRoot, entry.repoPath),
@@ -283,7 +285,7 @@ async function writeExtraPathManifest(plan: SyncPlan, extra: ExtraPathPlan): Pro
       continue;
     }
     if (stat.isFile()) {
-      await copyFileWithMode(sourcePath, entry.repoPath);
+      await copyFileWithMode(actualSourcePath, entry.repoPath);
       entries.push({
         sourcePath,
         repoPath: path.relative(plan.repoRoot, entry.repoPath),
