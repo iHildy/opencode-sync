@@ -89,8 +89,11 @@ Create `~/.config/opencode/opencode-synced.jsonc`:
 - `~/.config/opencode/opencode.json` and `opencode.jsonc`
 - `~/.config/opencode/AGENTS.md`
 - `~/.config/opencode/agent/`, `command/`, `mode/`, `tool/`, `themes/`, `plugin/`
+- `~/.config/opencode/agents/`, `instructions/`, `plugins/`, `skills/`, `superpowers/`
 - `~/.local/state/opencode/model.json` (model favorites)
 - Any extra paths in `extraConfigPaths` (allowlist, files or folders)
+
+Extra path manifests store home-relative `~` paths when possible to avoid Linux/macOS/WSL path churn.
 
 ### Secrets (private repos only)
 

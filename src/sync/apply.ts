@@ -17,7 +17,7 @@ import {
   stripOverrideKeys,
 } from './mcp-secrets.js';
 import type { ExtraPathPlan, SyncItem, SyncPlan } from './paths.js';
-import { normalizePath } from './paths.js';
+import { expandHome, normalizePath } from './paths.js';
 
 type ExtraPathType = 'file' | 'dir';
 
@@ -241,7 +241,7 @@ async function applyExtraPaths(plan: SyncPlan, extra: ExtraPathPlan): Promise<vo
     const repoPath = path.isAbsolute(entry.repoPath)
       ? entry.repoPath
       : path.join(plan.repoRoot, entry.repoPath);
-    const localPath = entry.sourcePath;
+    const localPath = expandHome(entry.sourcePath, plan.homeDir);
     const entryType: ExtraPathType = entry.type ?? 'file';
 
     if (!(await pathExists(repoPath))) continue;
