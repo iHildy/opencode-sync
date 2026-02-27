@@ -51,7 +51,19 @@ const DEFAULT_SYNC_CONFIG_NAME = 'opencode-synced.jsonc';
 const DEFAULT_OVERRIDES_NAME = 'opencode-synced.overrides.jsonc';
 const DEFAULT_STATE_NAME = 'sync-state.json';
 
-const CONFIG_DIRS = ['agent', 'command', 'mode', 'tool', 'themes', 'plugin'];
+const CONFIG_DIRS = [
+  'agent',
+  'command',
+  'mode',
+  'tool',
+  'themes',
+  'plugin',
+  'agents',
+  'instructions',
+  'plugins',
+  'skills',
+  'superpowers',
+];
 const SESSION_DIRS = ['storage/session', 'storage/message', 'storage/part', 'storage/session_diff'];
 const PROMPT_STASH_FILES = ['prompt-stash.jsonl', 'prompt-history.jsonl'];
 const MODEL_FAVORITES_FILE = 'model.json';
@@ -154,6 +166,30 @@ export function encodeExtraPath(inputPath: string): string {
   const hash = crypto.createHash('sha1').update(normalized).digest('hex').slice(0, 8);
   const base = safeBase ? safeBase.slice(-80) : 'path';
   return `${base}-${hash}`;
+}
+
+export function toPortableSourcePath(
+  inputPath: string,
+  homeDir: string,
+  platform: NodeJS.Platform = process.platform
+): string {
+  if (!homeDir) {
+    return inputPath;
+  }
+
+  const normalizedInput = normalizePath(inputPath, homeDir, platform);
+  const normalizedHome = normalizePath(homeDir, homeDir, platform);
+  if (normalizedInput === normalizedHome) {
+    return '~';
+  }
+
+  const relativeToHome = path.relative(normalizedHome, normalizedInput);
+  const outsideHome = relativeToHome === '..' || relativeToHome.startsWith(`..${path.sep}`);
+  if (outsideHome || path.isAbsolute(relativeToHome)) {
+    return normalizedInput;
+  }
+
+  return `~/${relativeToHome.split(path.sep).join('/')}`;
 }
 
 export const encodeSecretPath = encodeExtraPath;
@@ -319,10 +355,13 @@ function buildExtraPathPlan(
     normalizePath(entry, locations.xdg.homeDir, platform)
   );
 
-  const entries = allowlist.map((sourcePath) => ({
-    sourcePath,
-    repoPath: path.join(repoExtraDir, encodeExtraPath(sourcePath)),
-  }));
+  const entries = allowlist.map((sourcePath) => {
+    const portableSourcePath = toPortableSourcePath(sourcePath, locations.xdg.homeDir, platform);
+    return {
+      sourcePath: portableSourcePath,
+      repoPath: path.join(repoExtraDir, encodeExtraPath(portableSourcePath)),
+    };
+  });
 
   return {
     allowlist,

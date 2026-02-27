@@ -41,6 +41,24 @@ describe('resolveSyncLocations', () => {
 });
 
 describe('buildSyncPlan', () => {
+  it('includes modern opencode config directories by default', () => {
+    const env = { HOME: '/home/test' } as NodeJS.ProcessEnv;
+    const locations = resolveSyncLocations(env, 'linux');
+    const config: SyncConfig = {
+      repo: { owner: 'acme', name: 'config' },
+      includeSecrets: false,
+    };
+
+    const plan = buildSyncPlan(normalizeSyncConfig(config), locations, '/repo', 'linux');
+    const localPaths = new Set(plan.items.map((item) => item.localPath));
+
+    expect(localPaths.has('/home/test/.config/opencode/agents')).toBe(true);
+    expect(localPaths.has('/home/test/.config/opencode/instructions')).toBe(true);
+    expect(localPaths.has('/home/test/.config/opencode/plugins')).toBe(true);
+    expect(localPaths.has('/home/test/.config/opencode/skills')).toBe(true);
+    expect(localPaths.has('/home/test/.config/opencode/superpowers')).toBe(true);
+  });
+
   it('excludes secrets when includeSecrets is false', () => {
     const env = { HOME: '/home/test' } as NodeJS.ProcessEnv;
     const locations = resolveSyncLocations(env, 'linux');
@@ -85,6 +103,49 @@ describe('buildSyncPlan', () => {
     const plan = buildSyncPlan(normalizeSyncConfig(config), locations, '/repo', 'linux');
 
     expect(plan.extraConfigs.allowlist.length).toBe(0);
+  });
+
+  it('stores extra config paths as portable home-relative source paths', () => {
+    const env = { HOME: '/home/test' } as NodeJS.ProcessEnv;
+    const locations = resolveSyncLocations(env, 'linux');
+    const config: SyncConfig = {
+      repo: { owner: 'acme', name: 'config' },
+      includeSecrets: false,
+      extraConfigPaths: ['/home/test/.config/opencode/skills'],
+    };
+
+    const plan = buildSyncPlan(normalizeSyncConfig(config), locations, '/repo', 'linux');
+
+    expect(plan.extraConfigs.entries[0]?.sourcePath).toBe('~/.config/opencode/skills');
+  });
+
+  it('uses stable repo paths for home-relative extras across platforms', () => {
+    const linuxEnv = { HOME: '/home/test' } as NodeJS.ProcessEnv;
+    const macEnv = { HOME: '/Users/test' } as NodeJS.ProcessEnv;
+    const linuxLocations = resolveSyncLocations(linuxEnv, 'linux');
+    const macLocations = resolveSyncLocations(macEnv, 'darwin');
+    const linuxConfig: SyncConfig = {
+      repo: { owner: 'acme', name: 'config' },
+      includeSecrets: false,
+      extraConfigPaths: ['/home/test/.config/opencode/skills'],
+    };
+    const macConfig: SyncConfig = {
+      repo: { owner: 'acme', name: 'config' },
+      includeSecrets: false,
+      extraConfigPaths: ['/Users/test/.config/opencode/skills'],
+    };
+
+    const linuxPlan = buildSyncPlan(
+      normalizeSyncConfig(linuxConfig),
+      linuxLocations,
+      '/repo',
+      'linux'
+    );
+    const macPlan = buildSyncPlan(normalizeSyncConfig(macConfig), macLocations, '/repo', 'darwin');
+
+    expect(linuxPlan.extraConfigs.entries[0]?.repoPath).toBe(
+      macPlan.extraConfigs.entries[0]?.repoPath
+    );
   });
 
   it('includes secrets when includeSecrets is true', () => {
