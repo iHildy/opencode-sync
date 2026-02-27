@@ -12,3 +12,4 @@ coverage/
 .memory/
 opencode-plugin-template/
 opencode-docs-*/
+.worktrees/
