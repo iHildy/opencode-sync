@@ -355,13 +355,13 @@ function buildExtraPathPlan(
     normalizePath(entry, locations.xdg.homeDir, platform)
   );
 
-  const entries = allowlist.map((sourcePath) => ({
-    sourcePath: toPortableSourcePath(sourcePath, locations.xdg.homeDir, platform),
-    repoPath: path.join(
-      repoExtraDir,
-      encodeExtraPath(toPortableSourcePath(sourcePath, locations.xdg.homeDir, platform))
-    ),
-  }));
+  const entries = allowlist.map((sourcePath) => {
+    const portableSourcePath = toPortableSourcePath(sourcePath, locations.xdg.homeDir, platform);
+    return {
+      sourcePath: portableSourcePath,
+      repoPath: path.join(repoExtraDir, encodeExtraPath(portableSourcePath)),
+    };
+  });
 
   return {
     allowlist,

@@ -238,9 +238,7 @@ async function applyExtraPaths(plan: SyncPlan, extra: ExtraPathPlan): Promise<vo
     const isAllowed = allowlist.includes(normalized);
     if (!isAllowed) continue;
 
-    const repoPath = path.isAbsolute(entry.repoPath)
-      ? entry.repoPath
-      : path.join(plan.repoRoot, entry.repoPath);
+    const repoPath = resolveManifestRepoPath(plan.repoRoot, entry.repoPath);
     const localPath = expandHome(entry.sourcePath, plan.homeDir);
     const entryType: ExtraPathType = entry.type ?? 'file';
 
@@ -372,6 +370,25 @@ function resolveExtraPathItem(basePath: string, relativePath: string): string | 
   }
 
   return resolvedPath;
+}
+
+function resolveManifestRepoPath(repoRoot: string, manifestRepoPath: string): string {
+  if (path.isAbsolute(manifestRepoPath)) {
+    throw new Error('Invalid extra manifest repoPath: absolute paths are not allowed');
+  }
+
+  const resolvedRepoRoot = path.resolve(repoRoot);
+  const resolvedRepoPath = path.resolve(repoRoot, manifestRepoPath);
+  const relativePath = path.relative(resolvedRepoRoot, resolvedRepoPath);
+  const outsideRepo =
+    relativePath === '..' ||
+    relativePath.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relativePath);
+  if (outsideRepo) {
+    throw new Error('Invalid extra manifest repoPath: path escapes repository root');
+  }
+
+  return resolvedRepoPath;
 }
 
 function isDeepEqual(left: unknown, right: unknown): boolean {
